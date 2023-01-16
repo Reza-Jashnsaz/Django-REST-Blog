@@ -1,0 +1,16 @@
+{% extends 'layouts/master.html' %}
+
+
+{% block content %}
+
+{% include 'layouts/success.html' %}
+
+<h2>Log In</h2>
+<form method="post">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-info" type="submit">Login</button>
+</form>
+
+
+{% endblock content %}
