@@ -1,47 +1,76 @@
-from django.shortcuts import render, redirect
-from .forms import UserRegistrationForm, UserLoginForm
 from django.contrib.auth.models import User
-from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.http import HttpResponse
+from .serializers import *
+from rest_framework.response import Response
+from rest_framework.decorators import api_view , permission_classes
+from rest_framework.authtoken.models import Token
+from rest_framework.permissions import IsAuthenticated
 
 
-
-
+#signup user
+@api_view(['POST'])
 def user_register(request):
-	if request.method == 'POST':
-     #post
-		form = UserRegistrationForm(request.POST)
-		if form.is_valid():
-			cd = form.cleaned_data
-			user = User.objects.create_user(cd['username'], cd['email'], cd['password'])
-			messages.success(request, 'user registered successfully', 'success')
-			return redirect('home')
+    
+    #validation first
+	serializer = RegisterSerializer(data = request.POST)
+	if serializer.is_valid():
+		User.objects.create_user(request.POST.get('username'),request.POST.get('email'),request.POST.get('password'))
+		return Response({
+			"message" : "success",
+			"data" : serializer.data,
+        } , status = 200)
+	
 	else:
-     #get
-		form = UserRegistrationForm()
-	return render(request, 'accounts/register.html', {'form':form})
+		return Response({
+			'message' : "error", 
+			'data' : serializer.errors
+		}, status = 400)
+  
+    
 
 
+
+
+#signin user
+@api_view(['POST'])
 def user_login(request):
-	if request.method == 'POST':
-     #post
-		form = UserLoginForm(request.POST)
-		if form.is_valid():
-			cd = form.cleaned_data
-			user = authenticate(request, username=cd['username'], password=cd['password'])
-			if user is not None:
-				login(request, user)
-				messages.success(request, 'logged in successfully', 'success')
-				return redirect('home')
-			else:
-				messages.error(request, 'username or password is wrong', 'danger')
-	else:
-     #get
-		form = UserLoginForm()
-	return render(request, 'accounts/login.html', {'form':form})
+	
+	#validation
+	serializer = LoginSerializer(data = request.POST)
+	if serializer.is_valid():
+		sd = serializer.data
+		user = authenticate(request, username=sd['username'], password=sd['password'])
+		if user is not None:
+        #correct username password
+			login(request, user)
+			token = Token.objects.create(user=user)
+			return Response({
+				"message" : "success",
+				"data" : [serializer.data , token.key],
+			} , status = 200)	
+		else:
+        #wrong username or password
+			return Response({
+				"message" : "username or password is wrong",
+			} , status = 400)
+	
+	#if serializer is not valid
+	return Response({
+			'message' : "error", 
+			'data' : serializer.errors
+		}, status = 400)
+  
 
 
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def user_logout(request):
+    #delete token and logout user
+	Token.objects.get(key = request.user.auth_token).delete()
 	logout(request)
-	messages.success(request, 'logged out successfully', 'success')
-	return redirect('home')
+	return Response({
+		"message" : "success",
+	} , status = 200)

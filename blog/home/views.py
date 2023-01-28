@@ -1,89 +1,105 @@
-from django.shortcuts import render , redirect
+from django.shortcuts import render , redirect 
 from home.models import Post,Comment
-from django.http import HttpResponse,HttpResponseRedirect
 from datetime import datetime
-from django.contrib import messages
-from .forms import PostForm,CommentForm
+from .serializers import *
+from django.http import HttpResponse
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import api_view , permission_classes
 
 
+
+        
+        
+        
 #posts list
-def home(request):
+@api_view(['GET'])
+def posts(request):
     posts = Post.objects.order_by('-id')
-    return render(request, 'home.html' ,{'posts':posts})
+    posts = PostSerializer(posts , many = True).data
+    return Response({
+        'message' : "success", 
+        'data': posts,
+    }, status = 200)
+    
 
 
 #single post
+@api_view(['GET'])
 def post(request , id):
     post = Post.objects.get(id = id)
     comments = Comment.objects.filter(post_id = id).order_by('-id')
-    return render(request, 'single.html' ,{'post':post , 'comments':comments})
+    post = PostSerializer(post).data
+    comments = CommentSerializer(comments , many = True).data
+    return Response({
+        'message' : "success", 
+        'data': [post, comments],
+    }, status = 200)
+
+
 
 
 
 #create new post
+@api_view(['POST'])
 def create_post(request):
+    
     #validation first
-    form = PostForm(request.POST)
-    if form.is_valid():
+    serializer = PostSerializer(data = request.POST)
+    if serializer.is_valid():
         Post.objects.create(
             title = request.POST.get('title'),
             text = request.POST.get('text'),
-            created_at = datetime.now()
         )
-        messages.success(request, 'post created')
-        return redirect('home')
+        return Response({
+            'message' : "success", 
+        }, status = 200)
+
     else:
-        messages.error(request, 'validation failed')
-        return redirect('home')
-    
-
-
-#edit post page
-def edit_post(request , id):
-    post = Post.objects.get(id = id)
-    return render(request , 'edit.html' , {'post':post})
+         return Response({
+            'message' : "error", 
+            'data' : serializer.errors
+        }, status = 400)
+  
 
 
 
-#update post query
+
+
+#update post 
+@api_view(['PUT'])
 def update_post(request , id):
+    
     #validation first
-    form = PostForm(request.POST)
-    if form.is_valid():
+    serializer = PostSerializer(data = request.POST )
+    if serializer.is_valid():
         Post.objects.filter(id=id).update(
             title = request.POST.get('title'),
             text = request.POST.get('text'),
-        )
-        messages.success(request, 'post updated')
-        return redirect('home')
+        ) 
+        return Response({
+            'message' : "success", 
+        }, status = 200)
+
     else:
-        messages.error(request, 'validation failed')
-        return redirect('home')
-    
+         return Response({
+            'message' : "error", 
+            'data' : serializer.errors
+        }, status = 400)
+  
+
+
+
 
 
 #delete post
+@api_view(['DELETE'])
 def delete_post(request , id):
     Post.objects.get(id = id).delete()
-    messages.success(request, 'post deleted')
-    return redirect('home')
+    return Response({
+        'message' : "success", 
+    }, status = 200)
 
 
 
 
-#create comment for a post
-def create_comment(request , post_id):
-    #validation first
-    form = CommentForm(request.POST)
-    if form.is_valid():
-        Comment.objects.create(
-            text = request.POST.get('text'),
-            post_id = Post.objects.get(id = post_id)
-        )
-        messages.success(request, 'comment created')
-        return redirect(request.META.get('HTTP_REFERER', 'redirect_if_referer_not_found'))
-    else:
-        messages.error(request, 'validation failed')
-        return redirect(request.META.get('HTTP_REFERER', 'redirect_if_referer_not_found'))
-    
-    

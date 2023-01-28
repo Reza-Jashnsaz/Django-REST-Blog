@@ -1,9 +1,0 @@
-{% extends 'layouts/master.html' %}
-
-{% block content %}
-    <form action="" method="post" novalidate>
-        {% csrf_token %}
-        {{ form.as_p }}
-        <input class="btn btn-info" type="submit" value="Register">
-    </form>
-{% endblock %}
